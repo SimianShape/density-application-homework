@@ -13,7 +13,7 @@ sudo apt-get install build-essential socat lrzsz minicom ant openjdk-8-jdk git l
 Build and install libXMODEM
 --------------------------------
 ```bash
-git clone git@github.com:caseykelso/xmodem.git
+git clone git@github.com:SimianShape/density-application-homework.git
 cd xmodem
 mkdir build
 cd build
@@ -43,7 +43,7 @@ Get Code
 ```bash
 mkdir xmodem
 cd xmodem
-repo init -m xmodem.xml -u git://github.com/caseykelso/xmodem.git
+repo init -m xmodem.xml -u git://github.com/SimianShape/density-application-homework.git
 repo sync
 ```
 

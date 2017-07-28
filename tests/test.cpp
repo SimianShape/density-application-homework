@@ -1251,8 +1251,11 @@ TEST_F(XModemTests, XMODEM_RECEIVE_SUCCESS_READ_BLOCK)
 
 }
 
-TEST_F(XModemTests, XMODEM_RECEIVE_ABORT_TRANSFER)
+TEST_F(XModemTests, XMODEM_RECEIVE_MULTI_TIMEOUT_ABORT_TRANSFER)
 {
+  // Tests that 5 failed attempts to initiate reception, results
+  // in an aborted transfer state
+
   xmodem_receive_set_callback_write(&receiver_write_data);
   xmodem_receive_set_callback_read(&receiver_read_data);
   xmodem_receive_set_callback_is_outbound_full(&receiver_is_outbound_full);
@@ -1261,11 +1264,98 @@ TEST_F(XModemTests, XMODEM_RECEIVE_ABORT_TRANSFER)
   EXPECT_EQ(true, xmodem_receive_init());
   EXPECT_EQ(XMODEM_RECEIVE_INITIAL, xmodem_receive_state());
 
-  uint32_t timestamp = 0;
+  // Generate the first timeout. Note that these repeated steps could
+  // be wrapped up in a loop, if fact that was the first implementation
+  // but that caused misleading line numbers to be reported by gtest.
+  // a failure on the second loop pass reported the same line as a
+  // failure on the first. Seems better to have discrete lines for
+  // a multi-stage test like this
+  EXPECT_EQ(true, xmodem_receive_process(0));
+  EXPECT_EQ(XMODEM_RECEIVE_SEND_C, xmodem_receive_state());
 
-  //TODO: Implement unit tests here
+  EXPECT_EQ(true, xmodem_receive_process(0));
+  EXPECT_EQ(XMODEM_RECEIVE_WAIT_FOR_ACK, xmodem_receive_state());
+
+  EXPECT_EQ(true, xmodem_receive_process(3001));
+  EXPECT_EQ(XMODEM_RECEIVE_TIMEOUT_ACK, xmodem_receive_state());
+
+  // Generate the second timeout
+  EXPECT_EQ(true, xmodem_receive_process(0));
+  EXPECT_EQ(XMODEM_RECEIVE_SEND_C, xmodem_receive_state());
+
+  EXPECT_EQ(true, xmodem_receive_process(0));
+  EXPECT_EQ(XMODEM_RECEIVE_WAIT_FOR_ACK, xmodem_receive_state());
+
+  EXPECT_EQ(true, xmodem_receive_process(3001));
+  EXPECT_EQ(XMODEM_RECEIVE_TIMEOUT_ACK, xmodem_receive_state());
+
+  // Generate the third timeout
+  EXPECT_EQ(true, xmodem_receive_process(0));
+  EXPECT_EQ(XMODEM_RECEIVE_SEND_C, xmodem_receive_state());
+
+  EXPECT_EQ(true, xmodem_receive_process(0));
+  EXPECT_EQ(XMODEM_RECEIVE_WAIT_FOR_ACK, xmodem_receive_state());
+
+  EXPECT_EQ(true, xmodem_receive_process(3001));
+  EXPECT_EQ(XMODEM_RECEIVE_TIMEOUT_ACK, xmodem_receive_state());
+
+  // Generate the fourth timeout
+  EXPECT_EQ(true, xmodem_receive_process(0));
+  EXPECT_EQ(XMODEM_RECEIVE_SEND_C, xmodem_receive_state());
+
+  EXPECT_EQ(true, xmodem_receive_process(0));
+  EXPECT_EQ(XMODEM_RECEIVE_WAIT_FOR_ACK, xmodem_receive_state());
+
+  EXPECT_EQ(true, xmodem_receive_process(3001));
+  EXPECT_EQ(XMODEM_RECEIVE_TIMEOUT_ACK, xmodem_receive_state());
+
+  // Generate the fifth timeout
+  EXPECT_EQ(true, xmodem_receive_process(0));
+  EXPECT_EQ(XMODEM_RECEIVE_SEND_C, xmodem_receive_state());
+
+  EXPECT_EQ(true, xmodem_receive_process(0));
+  EXPECT_EQ(XMODEM_RECEIVE_WAIT_FOR_ACK, xmodem_receive_state());
+
+  EXPECT_EQ(true, xmodem_receive_process(3001));
+  EXPECT_EQ(XMODEM_RECEIVE_TIMEOUT_ACK, xmodem_receive_state());
+
+  // Checking that all the timeouts generate an aborted transfer state
+  EXPECT_EQ(true, xmodem_receive_process(3001));
+  EXPECT_EQ(XMODEM_RECEIVE_ABORT_TRANSFER, xmodem_receive_state());
 
   EXPECT_EQ(true, xmodem_receive_cleanup());
+
+}
+
+TEST_F(XModemTests, XMODEM_RECEIVE_BAD_FIRST_BYTE_ABORT_TRANSFER)
+{
+  // Tests that receiving a first byte other than
+  // SOH, EOT, CAN, and ETB results in an aborted transfer state
+
+  xmodem_receive_set_callback_write(&receiver_write_data);
+  xmodem_receive_set_callback_read(&receiver_read_data);
+  xmodem_receive_set_callback_is_outbound_full(&receiver_is_outbound_full);
+  xmodem_receive_set_callback_is_inbound_empty(&receiver_is_inbound_empty);
+
+  EXPECT_EQ(true, xmodem_receive_init());
+  EXPECT_EQ(XMODEM_RECEIVE_INITIAL, xmodem_receive_state());
+
+  EXPECT_EQ(true, xmodem_receive_process(0));
+  EXPECT_EQ(XMODEM_RECEIVE_SEND_C, xmodem_receive_state());
+
+  EXPECT_EQ(true, xmodem_receive_process(0));
+  EXPECT_EQ(XMODEM_RECEIVE_WAIT_FOR_ACK, xmodem_receive_state());
+
+  receiver_returned_inbound_size = 1;
+  // Set an invalid first byte to be received
+  receiver_inbound_buffer[0] = NACK;
+  receiver_outbound_buffer[0] = C;
+
+  EXPECT_EQ(true, xmodem_receive_process(0));
+  EXPECT_EQ(XMODEM_RECEIVE_ABORT_TRANSFER, xmodem_receive_state());
+
+  EXPECT_EQ(true, xmodem_receive_cleanup());
+
 }
 
 int main (int argc, char** argv)
